@@ -1,0 +1,141 @@
+#https://www.machinelearningplus.com/machine-learning/caret-package/
+#https://rdrr.io/cran/caret/man/models.html
+
+
+library(knitr)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(randomForest)
+library(corrplot)
+library(skimr)
+
+set.seed(12345)
+save.image("C:/Users/Deep/Desktop/Coursera/Practical Machine Learning/Week 4/Project.RData")
+dTest <- read.csv("C:/Users/Deep/Desktop/Coursera/Practical Machine Learning/Week 4/pml-testing.csv")
+dTrain <- read.csv("C:/Users/Deep/Desktop/Coursera/Practical Machine Learning/Week 4/pml-training.csv")
+inTrain  <- createDataPartition(dTrain$classe, p=0.7, list=FALSE)
+train <- dTrain[inTrain, ]
+test  <- dTrain[-inTrain, ]
+check = dTest[,-c(160)]
+problem_id = dTest$problem_id
+
+names(train)
+train1<-train[,-c(1:7)]
+names(train1)
+test1<-test[,-c(1:7)]
+check1<-check[,-c(1:7)]
+
+train_NZV <- nearZeroVar(train1)
+train2 <- train1[, -train_NZV]
+test2 <- test1[, -train_NZV]
+check2<-check1[,-train_NZV]
+
+na_col    <- sapply(train2, function(x) mean(is.na(x)))
+train3 <- train2[, na_col<0.95]
+test3 <- test2[, na_col<0.95]
+check3 <- check2[, na_col[1:99]<0.95]
+
+#data visulization
+skimmed <- skim_to_wide(train3)
+skimmed
+
+#check features
+featurePlot(x = train3[,1:52], 
+            y = train3$classe, 
+            plot = "box",
+            strip=strip.custom(par.strip.text=list(cex=.7)),
+            scales = list(x = list(relation="free"), 
+                          y = list(relation="free")))
+
+featurePlot(x = train3[, 1:52], 
+            y = train3$classe, 
+            plot = "density",
+            strip=strip.custom(par.strip.text=list(cex=.7)),
+            scales = list(x = list(relation="free"), 
+                          y = list(relation="free")))
+
+#using classification tree of rpart
+train3_class <- rpart(classe ~ ., data=train3, method="class")
+fancyRpartPlot(train3_class)
+train3_class_p <- predict(train3_class, newdata=test3, type="class")
+train3_class_p_sum <- confusionMatrix(train3_class_p, test3$classe)
+train3_class_p_sum
+
+#checking with testing set
+train3_class_c <- predict(train3_class, newdata=check3, type="class")
+
+#set CV details
+cv2 <- trainControl(method="cv", number=2, verboseIter=FALSE)
+cv3 <- trainControl(method="cv", number=3, verboseIter=FALSE)
+cv4 <- trainControl(method="cv", number=4, verboseIter=FALSE)
+cv5 <- trainControl(method="cv", number=5, verboseIter=FALSE)
+
+
+#using classification tree of train
+train3_rpart <- train(classe ~ ., data=train3, method="rpart")
+train3_rpart$finalModel
+plot(train3_rpart$finalModel,uniform = TRUE)
+text(train3_rpart$finalModel)
+fancyRpartPlot(train3_rpart$finalModel)
+train3_rpart_p <- predict(train3_rpart, newdata=test3)
+
+train3_rpart_p_sum <- confusionMatrix(train3_rpart_p, test3$classe)
+train3_rpart_p_sum
+
+#checking with test dataset
+train3_class_c <- predict(train3_rpart, newdata=check3)
+train3_class_c
+
+
+#using random
+train3_rf_cv2 <- train(classe ~ ., data=train3, method="rf",
+                   trControl=cv2)
+train3_rf_cv2$finalModel
+train3_rf_cv2_p <- predict(train3_rf_cv2, newdata=test3)
+
+train3_rf_cv2_p_sum <- confusionMatrix(train3_rf_cv2_p, test3$classe)
+train3_rf_cv2_p_sum
+
+#checking with test dataset
+train3_rf_cv2_c <- predict(train3_rf_cv2, newdata=check3)
+train3_rf_cv2_c
+
+
+#using random
+train3_rf_cv3 <- train(classe ~ ., data=train3, method="rf",
+                       trControl=cv3)
+train3_rf_cv3$finalModel
+train3_rf_cv3_p <- predict(train3_rf_cv3, newdata=test3)
+
+train3_rf_cv3_p_sum <- confusionMatrix(train3_rf_cv3_p, test3$classe)
+train3_rf_cv3_p_sum
+
+#checking with test dataset
+train3_rf_cv3_c <- predict(train3_rf_cv3, newdata=check3)
+train3_rf_cv3_c
+
+
+#using cgm
+
+train3_gbm_cv3  <- train(classe ~ ., data=train3, method = "gbm",
+                    trControl = cv3, verbose = FALSE)
+train3_gbm_cv3$finalModel
+train3_gbm_cv3_p <- predict(train3_gbm_cv3, newdata=test3)
+
+train3_gbm_cv3_p_sum <- confusionMatrix(train3_gbm_cv3_p, test3$classe)
+train3_gbm_cv3_p_sum
+
+
+#checking with test dataset
+train3_gbm_cv3_c <- predict(train3_gbm_cv3, newdata=check3)
+train3_gbm_cv3_c
+
+
+
+
+
+
+
+
